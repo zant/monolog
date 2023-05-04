@@ -1,3 +1,3 @@
 ### monolog
 
-distributed logger with style
+distributed log with style
