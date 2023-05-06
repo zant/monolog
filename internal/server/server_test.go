@@ -2,15 +2,32 @@ package server
 
 import (
 	"context"
+	"flag"
 	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	api "git.zantwi.ch/zantwich/jeans/api/v1"
 	"git.zantwi.ch/zantwich/jeans/internal/log"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
+
+var debug = flag.Bool("debug", false, "Enable observability for debugging")
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if *debug {
+		logger, err := zap.NewDevelopment()
+		if err != nil {
+			panic(err)
+		}
+		zap.ReplaceGlobals(logger)
+	}
+	os.Exit(m.Run())
+}
 
 func TestServer(t *testing.T) {
 	for scenario, fn := range map[string]func(

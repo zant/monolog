@@ -2,8 +2,13 @@ package server
 
 import (
 	"context"
+	"time"
 
 	api "git.zantwi.ch/zantwich/jeans/api/v1"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
 
@@ -30,8 +35,21 @@ func newgrpcServer(config *Config) (srv *grpcServer, err error) {
 	return srv, nil
 }
 
-func NewGRPCServer(config *Config) (*grpc.Server, error) {
-	gsrv := grpc.NewServer()
+func NewGRPCServer(config *Config, grpcOpts ...grpc.ServerOption) (*grpc.Server, error) {
+	logger := zap.L().Named("server")
+	zapOpts := []grpc_zap.Option{
+		grpc_zap.WithDurationField(func(duration time.Duration) zapcore.Field {
+			return zap.Int64("grpc.time_ns", duration.Nanoseconds())
+		}),
+	}
+	grpcOpts = append(grpcOpts, grpc.StreamInterceptor(
+		grpc_middleware.ChainStreamServer(
+			grpc_zap.StreamServerInterceptor(logger, zapOpts...),
+		)), grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+		grpc_zap.UnaryServerInterceptor(logger, zapOpts...),
+	)),
+	)
+	gsrv := grpc.NewServer(grpcOpts...)
 	srv, err := newgrpcServer(config)
 	if err != nil {
 		return nil, err
